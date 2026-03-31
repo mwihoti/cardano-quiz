@@ -104,12 +104,12 @@ export default function HostDashboard() {
   return (
     <div className="min-h-dvh flex flex-col">
       {/* Top bar */}
-      <header className="sticky top-0 z-20 border-b border-white/5 bg-background/80 backdrop-blur px-4 py-3">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="text-sm font-bold text-white">Cardano Quiz</div>
+      <header className="sticky top-0 z-20 border-b border-white/5 bg-background/80 backdrop-blur px-3 sm:px-4 py-2 sm:py-3">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <div className="text-sm font-bold text-white shrink-0">Cardano Quiz</div>
             <div className={cn(
-              "text-xs px-2 py-0.5 rounded-full font-mono",
+              "text-xs px-2 py-0.5 rounded-full font-mono shrink-0",
               status === "lobby" ? "bg-amber-400/15 text-amber-400" :
               status === "question" ? "bg-primary/15 text-primary animate-pulse" :
               status === "finished" ? "bg-green-500/15 text-green-400" :
@@ -118,35 +118,40 @@ export default function HostDashboard() {
               {status.toUpperCase()}
             </div>
             {status === "question" && (
-              <div className="text-xs text-muted-foreground">
+              <div className="text-xs text-muted-foreground truncate">
                 Q{currentIndex + 1}/{totalQuestions} · {timeLeft}s
               </div>
             )}
+            <div className="text-xs text-muted-foreground hidden sm:block shrink-0">
+              {rooms.length}r · {totalMembers}p
+            </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <div className="text-xs text-muted-foreground hidden sm:block">
-              {rooms.length} rooms · {totalMembers} players
-            </div>
+          <div className="flex items-center gap-1.5 shrink-0">
             {status === "lobby" && (
               <Button onClick={startGame} disabled={rooms.length === 0} size="sm">
-                <Play className="w-3.5 h-3.5" /> Start Game
+                <Play className="w-3.5 h-3.5" />
+                <span className="hidden xs:inline">Start Game</span>
               </Button>
             )}
             {status === "active" && (
               <Button onClick={nextQuestion} size="sm">
-                <ChevronRight className="w-3.5 h-3.5" /> First Question
+                <ChevronRight className="w-3.5 h-3.5" />
+                <span className="hidden xs:inline">First Question</span>
               </Button>
             )}
             {status === "question" && (
               <Button onClick={nextQuestion} size="sm" variant={lockedCount === rooms.length ? "default" : "outline"}>
                 <ChevronRight className="w-3.5 h-3.5" />
-                {lockedCount === rooms.length ? "Next →" : `Next (${lockedCount}/${rooms.length} locked)`}
+                {lockedCount === rooms.length
+                  ? <span>Next →</span>
+                  : <span className="hidden sm:inline">Next ({lockedCount}/{rooms.length})</span>}
+                {lockedCount !== rooms.length && <span className="sm:hidden">Next</span>}
               </Button>
             )}
             {(status === "question" || status === "active") && (
-              <Button onClick={endGame} size="sm" variant="ghost" className="text-red-400 hover:text-red-300">
-                <StopCircle className="w-3.5 h-3.5" />
+              <Button onClick={endGame} size="sm" variant="ghost" className="text-red-400 hover:text-red-300 px-2">
+                <StopCircle className="w-4 h-4" />
               </Button>
             )}
           </div>
@@ -172,11 +177,11 @@ export default function HostDashboard() {
                     <span className="text-xs text-amber-400">{currentQuestion.points} pts</span>
                   </div>
                   <p className="text-white font-semibold leading-snug max-w-3xl">{currentQuestion.question}</p>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
+                  <div className="grid grid-cols-2 gap-2 mt-3">
                     {(["A", "B", "C", "D"] as const).map((opt) => (
-                      <div key={opt} className="flex items-start gap-2 text-xs text-muted-foreground bg-white/3 rounded-lg px-3 py-2">
+                      <div key={opt} className="flex items-start gap-2 text-xs text-muted-foreground bg-white/3 rounded-lg px-2 py-2">
                         <span className="font-mono font-bold text-white/40 shrink-0">{opt}.</span>
-                        <span>{currentQuestion.options[opt]}</span>
+                        <span className="break-words">{currentQuestion.options[opt]}</span>
                       </div>
                     ))}
                   </div>

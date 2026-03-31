@@ -6,9 +6,11 @@ interface CountdownTimerProps {
   seconds: number;
   onExpire?: () => void;
   className?: string;
+  /** Small inline badge — use inside question headers on mobile */
+  compact?: boolean;
 }
 
-export function CountdownTimer({ seconds, onExpire, className }: CountdownTimerProps) {
+export function CountdownTimer({ seconds, onExpire, className, compact }: CountdownTimerProps) {
   const [remaining, setRemaining] = useState(seconds);
 
   useEffect(() => {
@@ -27,6 +29,20 @@ export function CountdownTimer({ seconds, onExpire, className }: CountdownTimerP
   const pct = (remaining / seconds) * 100;
   const isLow = remaining <= 10;
   const isCritical = remaining <= 5;
+
+  if (compact) {
+    return (
+      <div className={cn(
+        "flex items-center justify-center w-11 h-11 rounded-full font-mono font-black text-lg border-2 shrink-0 transition-colors",
+        isCritical ? "border-red-400 text-red-400 bg-red-400/10 animate-pulse" :
+        isLow ? "border-amber-400 text-amber-400 bg-amber-400/10" :
+        "border-primary text-primary bg-primary/10",
+        className
+      )}>
+        {remaining}
+      </div>
+    );
+  }
 
   return (
     <div className={cn("flex flex-col items-center gap-2", className)}>

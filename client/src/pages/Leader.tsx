@@ -57,7 +57,7 @@ export default function Leader() {
 
   if (roomCode) {
     return (
-      <div className="min-h-dvh flex flex-col items-center justify-center p-6">
+      <div className="min-h-dvh flex flex-col items-center justify-center p-6 pb-safe">
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -87,7 +87,7 @@ export default function Leader() {
   }
 
   return (
-    <div className="min-h-dvh flex flex-col items-center justify-center p-6">
+    <div className="min-h-dvh flex flex-col items-center justify-center p-6 pb-safe">
       <div className="w-full max-w-md space-y-6">
         <button onClick={() => nav("/")} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="w-4 h-4" /> Back

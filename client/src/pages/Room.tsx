@@ -269,7 +269,7 @@ export default function RoomPage() {
 
   if (phase === "join") {
     return (
-      <div className="min-h-dvh flex flex-col items-center justify-center p-6">
+      <div className="min-h-dvh flex flex-col items-center justify-center p-6 pb-safe">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm space-y-6">
           <div className="text-center space-y-2">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-green-500/10 border border-green-500/20 mb-2">
@@ -322,7 +322,7 @@ export default function RoomPage() {
 
   if (phase === "lobby") {
     return (
-      <div className="min-h-dvh flex flex-col items-center justify-center p-6">
+      <div className="min-h-dvh flex flex-col items-center justify-center p-6 pb-safe">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm space-y-6">
           <div className="text-center space-y-1">
             <div className="text-xs text-muted-foreground uppercase tracking-wider">Room</div>
@@ -370,31 +370,33 @@ export default function RoomPage() {
 
   if (phase === "question" && question) {
     return (
-      <div className="min-h-dvh flex flex-col p-4 max-w-2xl mx-auto">
+      <div className="min-h-dvh flex flex-col p-4 pb-safe max-w-2xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between py-3 mb-4">
-          <div>
-            <div className="text-xs text-muted-foreground">{room?.name}</div>
+        <div className="flex items-center justify-between py-3 mb-3">
+          <div className="min-w-0 flex-1 mr-3">
+            <div className="text-xs text-muted-foreground truncate">{room?.name}</div>
             <div className="text-sm font-bold text-white">Q{questionIndex + 1}/{totalQuestions}</div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 shrink-0">
             <div className="text-right">
               <div className="text-xs text-muted-foreground">Score</div>
-              <div className="text-xl font-black font-mono text-primary">{formatScore(totalScore)}</div>
+              <div className="text-lg font-black font-mono text-primary">{formatScore(totalScore)}</div>
             </div>
-            <CountdownTimer seconds={timeLimit} onExpire={() => setTimedOut(true)} />
+            <CountdownTimer seconds={timeLimit} onExpire={() => setTimedOut(true)} compact />
           </div>
         </div>
 
         {/* Category & question */}
-        <div className="mb-5">
-          <span className="text-xs text-primary/70 bg-primary/10 px-2 py-1 rounded-full">{question.category}</span>
-          <div className="text-xs text-amber-400 mt-2 mb-1">{question.points} points</div>
-          <h2 className="text-lg font-bold text-white leading-snug">{question.question}</h2>
+        <div className="mb-4">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-xs text-primary/70 bg-primary/10 px-2 py-1 rounded-full">{question.category}</span>
+            <span className="text-xs text-amber-400">{question.points} pts</span>
+          </div>
+          <h2 className="text-base sm:text-lg font-bold text-white leading-snug">{question.question}</h2>
         </div>
 
         {/* Answer options */}
-        <div className="grid grid-cols-1 gap-2 mb-6">
+        <div className="grid grid-cols-1 gap-2 mb-4">
           {(["A", "B", "C", "D"] as const).map((opt) => (
             <motion.button
               key={opt}
@@ -415,7 +417,7 @@ export default function RoomPage() {
         </div>
 
         {/* Vote distribution */}
-        <div className="card-glass rounded-xl p-4 mb-4">
+        <div className="card-glass rounded-xl p-3 sm:p-4 mb-3">
           <div className="text-xs text-muted-foreground uppercase tracking-wider mb-3">
             Team Votes ({voteState.totalVotes}/{voteState.totalMembers})
           </div>
@@ -475,7 +477,7 @@ export default function RoomPage() {
 
   if (phase === "result" && result) {
     return (
-      <div className="min-h-dvh flex flex-col items-center justify-center p-6 max-w-xl mx-auto">
+      <div className="min-h-dvh flex flex-col items-center justify-center p-4 sm:p-6 pb-safe max-w-xl mx-auto">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -490,16 +492,16 @@ export default function RoomPage() {
                   animate={{ scale: 1 }}
                   transition={{ type: "spring", stiffness: 300, damping: 15 }}
                 >
-                  <CheckCircle2 className="w-20 h-20 text-green-400" />
+                  <CheckCircle2 className="w-16 h-16 sm:w-20 sm:h-20 text-green-400" />
                 </motion.div>
-                <div className="text-3xl font-black text-green-300">+{result.points} pts!</div>
+                <div className="text-2xl sm:text-3xl font-black text-green-300">+{result.points} pts!</div>
               </>
             ) : (
               <>
                 <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring" }}>
-                  <XCircle className="w-20 h-20 text-red-400" />
+                  <XCircle className="w-16 h-16 sm:w-20 sm:h-20 text-red-400" />
                 </motion.div>
-                <div className="text-2xl font-black text-red-300">Not quite!</div>
+                <div className="text-xl sm:text-2xl font-black text-red-300">Not quite!</div>
               </>
             )}
             <div className="text-sm text-muted-foreground">
@@ -548,7 +550,7 @@ export default function RoomPage() {
     const myEntry = leaderboard.find((e) => e.code === myRoom?.code);
 
     return (
-      <div className="min-h-dvh flex flex-col items-center justify-center p-6">
+      <div className="min-h-dvh flex flex-col items-center justify-center p-4 sm:p-6 pb-safe">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
