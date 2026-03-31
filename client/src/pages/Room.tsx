@@ -53,6 +53,7 @@ export default function RoomPage() {
   const [questionIndex, setQuestionIndex] = useState(-1);
   const [totalQuestions, setTotalQuestions] = useState(0);
   const [selectedVote, setSelectedVote] = useState<string | null>(null);
+  const [timedOut, setTimedOut] = useState(false);
   const [timeLimit, setTimeLimit] = useState(0);
   const [voteState, setVoteState] = useState<VoteState>({ voteCounts: { A: 0, B: 0, C: 0, D: 0 }, totalVotes: 0, totalMembers: 0 });
   const [result, setResult] = useState<AnswerResult | null>(null);
@@ -115,6 +116,7 @@ export default function RoomPage() {
           setTotalQuestions(msg.totalQuestions);
           setTimeLimit(msg.timeLimit);
           setSelectedVote(null);
+          setTimedOut(false);
           setResult(null);
           setVoteState({ voteCounts: { A: 0, B: 0, C: 0, D: 0 }, totalVotes: 0, totalMembers: room?.members.length ?? 0 });
           setPhase("question");
@@ -187,7 +189,8 @@ export default function RoomPage() {
   }
 
   function vote(opt: string) {
-    if (selectedVote || result || !question) return;
+    if (timedOut || result || !question) return;
+    const prev = selectedVote;
     setSelectedVote(opt);
     gameSocket.send({
       type: "VOTE",
@@ -195,7 +198,7 @@ export default function RoomPage() {
       questionIndex,
       vote: opt,
     });
-    toast(`Voted ${opt}!`);
+    toast(prev ? `Changed to ${opt}` : `Voted ${opt}!`);
   }
 
   function lockAnswer(opt: string) {
@@ -325,7 +328,7 @@ export default function RoomPage() {
               <div className="text-xs text-muted-foreground">Score</div>
               <div className="text-xl font-black font-mono text-primary">{formatScore(totalScore)}</div>
             </div>
-            <CountdownTimer seconds={timeLimit} />
+            <CountdownTimer seconds={timeLimit} onExpire={() => setTimedOut(true)} />
           </div>
         </div>
 
@@ -342,13 +345,13 @@ export default function RoomPage() {
             <motion.button
               key={opt}
               onClick={() => vote(opt)}
-              disabled={!!selectedVote}
-              whileHover={!selectedVote ? { scale: 1.01 } : {}}
-              whileTap={!selectedVote ? { scale: 0.98 } : {}}
+              disabled={timedOut || !!result}
+              whileHover={!timedOut && !result ? { scale: 1.01 } : {}}
+              whileTap={!timedOut && !result ? { scale: 0.98 } : {}}
               className={cn(
                 "answer-btn",
                 selectedVote === opt && "selected",
-                selectedVote && selectedVote !== opt && "opacity-40"
+                (timedOut || result) && selectedVote !== opt && "opacity-40"
               )}
             >
               <span className="font-mono font-bold text-white/40 mr-3">{opt}.</span>
@@ -369,6 +372,13 @@ export default function RoomPage() {
           />
         </div>
 
+        {/* Timer expired banner */}
+        {timedOut && (
+          <div className="text-center text-xs text-red-400/80 bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2 mb-2">
+            Time's up — voting closed
+          </div>
+        )}
+
         {/* Leader lock button */}
         {isLeader && selectedVote && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
@@ -381,20 +391,26 @@ export default function RoomPage() {
               Lock Answer: {selectedVote}
             </Button>
             <p className="text-xs text-center text-muted-foreground mt-2">
-              Discuss with your team, then lock your group's final answer
+              {timedOut ? "Lock your team's final answer" : "Discuss with your team, then lock your group's final answer"}
             </p>
           </motion.div>
         )}
 
         {isLeader && !selectedVote && (
           <div className="text-center text-xs text-amber-400/70 mt-2">
-            Vote first, then you can lock the group's answer
+            {timedOut ? "No vote selected — no points this round" : "Vote first, then you can lock the group's answer"}
           </div>
         )}
 
-        {!isLeader && selectedVote && (
+        {!isLeader && selectedVote && !timedOut && (
           <div className="text-center text-xs text-muted-foreground mt-2 animate-pulse">
             Waiting for leader to lock the answer...
+          </div>
+        )}
+
+        {!isLeader && timedOut && (
+          <div className="text-center text-xs text-muted-foreground mt-2 animate-pulse">
+            Waiting for leader to lock...
           </div>
         )}
       </div>
