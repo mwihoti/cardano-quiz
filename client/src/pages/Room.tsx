@@ -139,7 +139,7 @@ export default function RoomPage() {
           // Persist session so page reload auto-rejoins
           saveSession({
             roomCode: msg.room.code,
-            name: myName.trim() || msg.room.members.find((m: Member) => m.id === gameSocket.socketId)?.name ?? "",
+            name: (myName.trim() || msg.room.members.find((m: Member) => m.id === gameSocket.socketId)?.name) ?? "",
             walletAddress: wallet,
             isLeader: me?.isLeader ?? false,
           });
