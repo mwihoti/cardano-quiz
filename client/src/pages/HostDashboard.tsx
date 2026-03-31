@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
-import { useParams } from "wouter";
+import { useParams, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, ChevronRight, Trophy, Users, StopCircle, BarChart3 } from "lucide-react";
+import { Play, ChevronRight, Trophy, Users, StopCircle, BarChart3, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RoomCard } from "@/components/RoomCard";
 import { gameSocket } from "@/lib/websocket";
@@ -15,6 +15,7 @@ type Tab = "rooms" | "leaderboard";
 
 export default function HostDashboard() {
   const { gameId } = useParams<{ gameId: string }>();
+  const [, nav] = useLocation();
   const [status, setStatus] = useState<GameStatus>("lobby");
   const [rooms, setRooms] = useState<RoomSummary[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
@@ -108,6 +109,9 @@ export default function HostDashboard() {
       <header className="sticky top-0 z-20 border-b border-white/5 bg-background/80 backdrop-blur px-3 sm:px-4 py-2 sm:py-3">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0 flex-1">
+            <button onClick={() => nav("/")} className="text-muted-foreground hover:text-foreground shrink-0 p-1 -ml-1 rounded" title="Home">
+              <Home className="w-4 h-4" />
+            </button>
             <div className="text-sm font-bold text-white shrink-0">Cardano Quiz</div>
             <div className={cn(
               "text-xs px-2 py-0.5 rounded-full font-mono shrink-0",
