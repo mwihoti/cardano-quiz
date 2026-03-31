@@ -19,12 +19,14 @@ export function CountdownTimer({ seconds, onExpire, className, compact }: Countd
 
   useEffect(() => {
     if (remaining <= 0) {
-      onExpire?.();
+      // Only fire onExpire if the timer actually had a positive starting value.
+      // Prevents false expiry when seconds=0 (uninitialized / joining mid-question).
+      if (seconds > 0) onExpire?.();
       return;
     }
     const t = setTimeout(() => setRemaining((r) => r - 1), 1000);
     return () => clearTimeout(t);
-  }, [remaining, onExpire]);
+  }, [remaining, onExpire, seconds]);
 
   const pct = (remaining / seconds) * 100;
   const isLow = remaining <= 10;

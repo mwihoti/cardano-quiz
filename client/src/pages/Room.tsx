@@ -135,6 +135,11 @@ export default function RoomPage() {
           if (msg.currentQuestion) {
             setQuestion(msg.currentQuestion);
             setQuestionIndex(msg.currentQuestionIndex);
+            // Set timeLimit so the timer isn't stuck at 0 when joining mid-question.
+            // The server doesn't track elapsed time so this resets to the full limit —
+            // better than 0s which immediately fires onExpire and disables all buttons.
+            setTimeLimit(msg.currentQuestion.timeLimit ?? 30);
+            setTimedOut(false);
           }
           // Persist session so page reload auto-rejoins
           saveSession({
