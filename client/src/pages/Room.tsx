@@ -10,6 +10,7 @@ import { CountdownTimer } from "@/components/CountdownTimer";
 import { QRCodeDisplay } from "@/components/QRCodeDisplay";
 import { gameSocket } from "@/lib/websocket";
 import { toast } from "sonner";
+import { savePlayerJoin } from "@/lib/airtable";
 import { cn, formatScore } from "@/lib/utils";
 import type { Member, Question, GameStatus, LeaderboardEntry, Room } from "@/types";
 
@@ -22,21 +23,23 @@ interface SessionData {
   name: string;
   walletAddress: string | null;
   isLeader: boolean;
+  gameCode: string;
+  airtableSaved?: boolean;
 }
 
 function saveSession(data: SessionData) {
-  try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(data)); } catch { /* ignore */ }
+  try { localStorage.setItem(SESSION_KEY, JSON.stringify(data)); } catch { /* ignore */ }
 }
 
 function loadSession(): SessionData | null {
   try {
-    const raw = sessionStorage.getItem(SESSION_KEY);
+    const raw = localStorage.getItem(SESSION_KEY);
     return raw ? (JSON.parse(raw) as SessionData) : null;
   } catch { return null; }
 }
 
 function clearSession() {
-  try { sessionStorage.removeItem(SESSION_KEY); } catch { /* ignore */ }
+  try { localStorage.removeItem(SESSION_KEY); } catch { /* ignore */ }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -88,6 +91,7 @@ export default function RoomPage() {
   const [result, setResult] = useState<AnswerResult | null>(null);
   const [totalScore, setTotalScore] = useState(0);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [gameCode, setGameCode] = useState<string>("");
 
   const socketId = useRef<string | null>(null);
 
@@ -141,13 +145,35 @@ export default function RoomPage() {
             setTimeLimit(msg.currentQuestion.timeLimit ?? 30);
             setTimedOut(false);
           }
+
+          // Store game code
+          if (msg.gameCode) setGameCode(msg.gameCode);
+
           // Persist session so page reload auto-rejoins
+          const session = loadSession();
+          const isRejoin = !!session?.airtableSaved;
           saveSession({
             roomCode: msg.room.code,
             name: (myName.trim() || msg.room.members.find((m: Member) => m.id === gameSocket.socketId)?.name) ?? "",
             walletAddress: wallet,
             isLeader: me?.isLeader ?? false,
+            gameCode: msg.gameCode ?? "",
+            airtableSaved: isRejoin || !msg.gameCode ? (session?.airtableSaved ?? false) : false,
           });
+
+          // Save player to Airtable on first join only (not on every rejoin)
+          if (!isRejoin && msg.gameCode && me) {
+            savePlayerJoin({
+              name: me.name,
+              team: msg.room.name,
+              gameCode: msg.gameCode,
+              walletAddress: me.walletAddress ?? wallet ?? undefined,
+            }).then(() => {
+              // Mark as saved so reloads don't duplicate the Airtable record
+              const s = loadSession();
+              if (s) saveSession({ ...s, airtableSaved: true });
+            });
+          }
           break;
 
         case "MEMBER_JOINED":

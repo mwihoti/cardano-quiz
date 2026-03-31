@@ -1,10 +1,34 @@
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { Monitor, Crown, Users } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Monitor, Crown, Users, RefreshCw } from "lucide-react";
+
+const HOST_SESSION_KEY = "cq_host_session";
+const ROOM_SESSION_KEY = "cq_room_session";
+
+interface HostSession { gameCode: string; gameId: string; }
+interface RoomSession { roomCode: string; name: string; isLeader: boolean; gameCode: string; }
 
 export default function Home() {
   const [, nav] = useLocation();
+  const [hostSession, setHostSession] = useState<HostSession | null>(null);
+  const [roomSession, setRoomSession] = useState<RoomSession | null>(null);
+
+  useEffect(() => {
+    try {
+      const h = localStorage.getItem(HOST_SESSION_KEY);
+      if (h) setHostSession(JSON.parse(h));
+      const r = localStorage.getItem(ROOM_SESSION_KEY);
+      if (r) setRoomSession(JSON.parse(r));
+    } catch { /* ignore */ }
+  }, []);
+
+  function clearSessions() {
+    localStorage.removeItem(HOST_SESSION_KEY);
+    localStorage.removeItem(ROOM_SESSION_KEY);
+    setHostSession(null);
+    setRoomSession(null);
+  }
 
   return (
     <div className="min-h-dvh flex flex-col items-center justify-center p-6 relative overflow-hidden">
@@ -18,7 +42,7 @@ export default function Home() {
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
-        className="relative z-10 w-full max-w-md space-y-8"
+        className="relative z-10 w-full max-w-md space-y-6"
       >
         {/* Logo */}
         <div className="text-center space-y-2">
@@ -42,6 +66,56 @@ export default function Home() {
             Nairobi Cardano Meetup · Group Challenge
           </p>
         </div>
+
+        {/* Resume sessions */}
+        {(hostSession || roomSession) && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="card-glass rounded-2xl p-4 border border-primary/20 space-y-3"
+          >
+            <div className="flex items-center justify-between">
+              <div className="text-xs text-primary/70 uppercase tracking-wider font-semibold">Resume session</div>
+              <button onClick={clearSessions} className="text-xs text-muted-foreground hover:text-foreground">
+                Clear
+              </button>
+            </div>
+
+            {hostSession && (
+              <button
+                onClick={() => nav(`/host/${hostSession.gameId}`)}
+                className="w-full flex items-center gap-3 p-3 rounded-xl bg-primary/10 border border-primary/20 hover:border-primary/40 transition-all text-left"
+              >
+                <Monitor className="w-5 h-5 text-primary shrink-0" />
+                <div>
+                  <div className="text-sm font-bold text-white">Resume hosting</div>
+                  <div className="text-xs text-muted-foreground">Game code: <span className="font-mono text-primary">{hostSession.gameCode}</span></div>
+                </div>
+                <RefreshCw className="w-4 h-4 text-primary/60 ml-auto shrink-0" />
+              </button>
+            )}
+
+            {roomSession && (
+              <button
+                onClick={() => nav(`/room/${roomSession.roomCode}`)}
+                className="w-full flex items-center gap-3 p-3 rounded-xl bg-amber-400/10 border border-amber-400/20 hover:border-amber-400/40 transition-all text-left"
+              >
+                {roomSession.isLeader
+                  ? <Crown className="w-5 h-5 text-amber-400 shrink-0" />
+                  : <Users className="w-5 h-5 text-green-400 shrink-0" />}
+                <div>
+                  <div className="text-sm font-bold text-white">
+                    {roomSession.isLeader ? "Resume as leader" : "Rejoin room"}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {roomSession.name} · Room <span className="font-mono text-amber-400">{roomSession.roomCode}</span>
+                  </div>
+                </div>
+                <RefreshCw className="w-4 h-4 text-amber-400/60 ml-auto shrink-0" />
+              </button>
+            )}
+          </motion.div>
+        )}
 
         {/* Role selector */}
         <div className="space-y-3">

@@ -49,7 +49,7 @@ export type ServerMsg =
   | { type: "ERROR"; message: string }
   | { type: "GAME_CREATED"; game: { id: string; code: string; status: GameStatus } }
   | { type: "ROOM_CREATED"; room: Room; gameId: string }
-  | { type: "JOINED_ROOM"; room: Room; gameStatus: GameStatus; currentQuestionIndex: number; currentQuestion: Question | null; totalQuestions: number }
+  | { type: "JOINED_ROOM"; room: Room; gameStatus: GameStatus; currentQuestionIndex: number; currentQuestion: Question | null; totalQuestions: number; gameCode: string }
   | { type: "MEMBER_JOINED"; member: Member; members: Member[] }
   | { type: "MEMBER_LEFT"; memberId: string; members: Member[] }
   | { type: "VOTE_UPDATE"; voteCounts: Record<string, number>; memberId: string; vote: string; totalVotes: number; totalMembers: number }

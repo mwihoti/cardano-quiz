@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import type { RoomSummary, Question, LeaderboardEntry, GameStatus } from "@/types";
 import { formatScore, shortenAddress } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import { saveGameResults, savePlayers, saveEvent } from "@/lib/airtable";
+import { saveGameResults, updatePlayerScores, saveEvent } from "@/lib/airtable";
 
 type Tab = "rooms" | "leaderboard";
 
@@ -60,6 +60,7 @@ export default function HostDashboard() {
           setStatus("finished");
           setCurrentQuestion(null);
           setTab("leaderboard");
+          localStorage.removeItem("cq_host_session");
           // Auto-save everything to Airtable
           {
             const lb = msg.leaderboard.map((e: LeaderboardEntry) => ({
@@ -68,7 +69,7 @@ export default function HostDashboard() {
             const totalPlayers = lb.reduce((s: number, e: typeof lb[0]) => s + e.members.length, 0);
             Promise.all([
               saveGameResults(gameCode, lb, totalQuestions),
-              savePlayers(gameCode, lb),
+              updatePlayerScores(gameCode, lb),
               saveEvent(gameCode, lb.length, totalPlayers, lb[0]?.name ?? ""),
             ]).then(() => toast.success("Results & players saved to Airtable ✓")).catch(() => {});
           }

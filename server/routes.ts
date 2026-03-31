@@ -305,6 +305,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
             currentQuestionIndex: result.game.currentQuestionIndex,
             currentQuestion: currentQ,
             totalQuestions: result.game.questions.length,
+            gameCode: result.game.code,
           });
 
           // Notify other room members

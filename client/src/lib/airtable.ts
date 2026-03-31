@@ -11,6 +11,7 @@ const TABLES = {
   events: "Events",
   results: "Results",
   players: "Players",
+  sessions: "Sessions",
 } as const;
 
 function headers() {
@@ -263,4 +264,132 @@ export async function getResultsByDate(date: string): Promise<AirtableResult[]> 
   } catch {
     return [];
   }
+}
+
+// ─── Write: save game session when host creates game ──────────────────────────
+export async function saveGameSession(gameCode: string): Promise<void> {
+  if (!isConfigured()) return;
+  const eventDate = new Date().toISOString().split("T")[0];
+  await batchPost(TABLES.sessions, [
+    {
+      fields: {
+        "Game Code": gameCode,
+        "Status": "active",
+        "Created At": eventDate,
+        "Location": "Nairobi, Kenya",
+        "Total Rooms": 0,
+        "Total Players": 0,
+      },
+    },
+  ]);
+}
+
+// ─── Write: save player immediately when they join a room ────────────────────
+export async function savePlayerJoin(player: {
+  name: string;
+  team: string;
+  gameCode: string;
+  walletAddress?: string;
+}): Promise<void> {
+  if (!isConfigured() || !player.name || !player.gameCode) return;
+  const eventDate = new Date().toISOString().split("T")[0];
+  await batchPost(TABLES.players, [
+    {
+      fields: {
+        "Name": player.name,
+        "Wallet Address": player.walletAddress ?? "",
+        "Team": player.team,
+        "Game Code": player.gameCode,
+        "Event Date": eventDate,
+        "Team Score": 0,
+        "Team Rank": 0,
+        "NFT Sent": false,
+        "NFT Tx Hash": "",
+      },
+    },
+  ]);
+}
+
+// ─── Write: update player scores at game end (no duplicates) ─────────────────
+// Finds existing join-time records and patches them with final scores.
+// Creates records for any player not already in the table.
+export async function updatePlayerScores(
+  gameCode: string,
+  leaderboard: Array<{
+    rank: number;
+    name: string;
+    score: number;
+    members: Array<{ name: string; walletAddress?: string; isLeader: boolean }>;
+  }>
+): Promise<void> {
+  if (!isConfigured()) return;
+
+  const eventDate = new Date().toISOString().split("T")[0];
+
+  // 1. Fetch all existing player records for this game
+  let existing: AirtablePlayer[] = [];
+  try {
+    const formula = encodeURIComponent(`{Game Code}='${gameCode}'`);
+    const res = await fetch(`${BASE}/${TABLES.players}?filterByFormula=${formula}&maxRecords=200`, {
+      headers: headers(),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      existing = data.records ?? [];
+    }
+  } catch { /* ignore */ }
+
+  // 2. Build name → recordId lookup
+  const nameToId: Record<string, string> = {};
+  existing.forEach((r) => {
+    if (r.fields["Name"]) nameToId[r.fields["Name"]] = r.id;
+  });
+
+  const updates: Array<{ id: string; fields: object }> = [];
+  const creates: object[] = [];
+
+  for (const entry of leaderboard) {
+    for (const member of entry.members) {
+      const recordId = nameToId[member.name];
+      if (recordId) {
+        updates.push({
+          id: recordId,
+          fields: {
+            "Team Score": entry.score,
+            "Team Rank": entry.rank,
+            "Wallet Address": member.walletAddress ?? "",
+          },
+        });
+      } else {
+        creates.push({
+          fields: {
+            "Name": member.name,
+            "Wallet Address": member.walletAddress ?? "",
+            "Team": entry.name,
+            "Game Code": gameCode,
+            "Event Date": eventDate,
+            "Team Score": entry.score,
+            "Team Rank": entry.rank,
+            "NFT Sent": false,
+            "NFT Tx Hash": "",
+          },
+        });
+      }
+    }
+  }
+
+  // 3. Batch PATCH existing records (10 per request)
+  for (let i = 0; i < updates.length; i += 10) {
+    const batch = updates.slice(i, i + 10);
+    try {
+      await fetch(`${BASE}/${TABLES.players}`, {
+        method: "PATCH",
+        headers: headers(),
+        body: JSON.stringify({ records: batch }),
+      });
+    } catch { /* ignore */ }
+  }
+
+  // 4. Create records for players not yet in Airtable
+  if (creates.length > 0) await batchPost(TABLES.players, creates);
 }

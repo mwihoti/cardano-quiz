@@ -5,6 +5,9 @@ import { Monitor, ArrowLeft, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { gameSocket } from "@/lib/websocket";
 import { toast } from "sonner";
+import { saveGameSession } from "@/lib/airtable";
+
+const HOST_SESSION_KEY = "cq_host_session";
 
 export default function Host() {
   const [, nav] = useLocation();
@@ -19,6 +22,9 @@ export default function Host() {
         setGameCode(msg.game.code);
         setGameId(msg.game.id);
         setCreating(false);
+        // Save session and Airtable record
+        localStorage.setItem(HOST_SESSION_KEY, JSON.stringify({ gameCode: msg.game.code, gameId: msg.game.id }));
+        saveGameSession(msg.game.code);
       }
       if (msg.type === "ERROR") {
         toast.error(msg.message);
