@@ -9,7 +9,7 @@ import { batchMintNfts, isNmkrConfigured, getNmkrStatus } from "./nft.js";
 type Msg =
   | { type: "CREATE_GAME" }
   | { type: "CREATE_ROOM"; gameCode: string; roomName: string; leaderName: string; walletAddress?: string }
-  | { type: "JOIN_ROOM"; roomCode: string; name: string; walletAddress?: string }
+  | { type: "JOIN_ROOM"; roomCode: string; name: string; walletAddress?: string; isLeader?: boolean }
   | { type: "VOTE"; roomCode: string; questionIndex: number; vote: string }
   | { type: "LOCK_ANSWER"; roomCode: string; questionIndex: number; answer: string }
   | { type: "START_GAME"; gameId: string }
@@ -287,7 +287,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
             id: socketId,
             name: msg.name,
             walletAddress: msg.walletAddress,
-            isLeader: false,
+            isLeader: msg.isLeader ?? false,
           });
           if (!result) { send(ws, { type: "ERROR", message: "Room not found. Check the room code." }); break; }
 

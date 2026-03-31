@@ -13,6 +13,34 @@ import { toast } from "sonner";
 import { cn, formatScore } from "@/lib/utils";
 import type { Member, Question, GameStatus, LeaderboardEntry, Room } from "@/types";
 
+// ─── Session persistence (survive page reload) ────────────────────────────────
+
+const SESSION_KEY = "cq_room_session";
+
+interface SessionData {
+  roomCode: string;
+  name: string;
+  walletAddress: string | null;
+  isLeader: boolean;
+}
+
+function saveSession(data: SessionData) {
+  try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(data)); } catch { /* ignore */ }
+}
+
+function loadSession(): SessionData | null {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    return raw ? (JSON.parse(raw) as SessionData) : null;
+  } catch { return null; }
+}
+
+function clearSession() {
+  try { sessionStorage.removeItem(SESSION_KEY); } catch { /* ignore */ }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 type Phase = "join" | "lobby" | "question" | "result" | "finished";
 
 interface VoteState {
@@ -36,10 +64,11 @@ export default function RoomPage() {
   const isLeaderParam = new URLSearchParams(search).get("leader") === "1";
   const isJoinPage = roomCode === "join";
 
-  // Join form state
-  const [joinCode, setJoinCode] = useState(isJoinPage ? "" : (roomCode || ""));
-  const [myName, setMyName] = useState("");
-  const [wallet, setWallet] = useState<string | null>(null);
+  // Join form state — pre-fill from stored session if available
+  const storedSession = loadSession();
+  const [joinCode, setJoinCode] = useState(isJoinPage ? (storedSession?.roomCode ?? "") : (roomCode || ""));
+  const [myName, setMyName] = useState(storedSession?.name ?? "");
+  const [wallet, setWallet] = useState<string | null>(storedSession?.walletAddress ?? null);
   const [joining, setJoining] = useState(false);
 
   // Room state
@@ -78,6 +107,20 @@ export default function RoomPage() {
       switch (msg.type) {
         case "CONNECTED":
           socketId.current = msg.socketId;
+          // Auto-rejoin on reconnect if we have a stored session
+          {
+            const session = loadSession();
+            if (session) {
+              setJoining(true);
+              gameSocket.send({
+                type: "JOIN_ROOM",
+                roomCode: session.roomCode,
+                name: session.name,
+                walletAddress: session.walletAddress ?? undefined,
+                isLeader: session.isLeader,
+              });
+            }
+          }
           break;
 
         case "JOINED_ROOM":
@@ -93,6 +136,13 @@ export default function RoomPage() {
             setQuestion(msg.currentQuestion);
             setQuestionIndex(msg.currentQuestionIndex);
           }
+          // Persist session so page reload auto-rejoins
+          saveSession({
+            roomCode: msg.room.code,
+            name: myName.trim() || msg.room.members.find((m: Member) => m.id === gameSocket.socketId)?.name ?? "",
+            walletAddress: wallet,
+            isLeader: me?.isLeader ?? false,
+          });
           break;
 
         case "MEMBER_JOINED":
@@ -143,11 +193,14 @@ export default function RoomPage() {
         case "GAME_FINISHED":
           setLeaderboard(msg.leaderboard);
           setPhase("finished");
+          clearSession();
           break;
 
         case "ERROR":
           toast.error(msg.message);
           setJoining(false);
+          // If rejoin failed (room/game gone), clear stale session
+          if (loadSession()) clearSession();
           break;
 
         case "GAME_RESET":
@@ -167,6 +220,7 @@ export default function RoomPage() {
 
         case "GAME_DELETED":
         case "KICKED":
+          clearSession();
           toast.error(msg.message);
           setTimeout(() => { window.location.href = "/"; }, 2500);
           break;
