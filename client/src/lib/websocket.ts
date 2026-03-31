@@ -14,6 +14,8 @@ class GameSocket {
   }
 
   private buildUrl(): string {
+    // Explicit override for split deployments (frontend on Vercel, backend on Render)
+    if (import.meta.env.VITE_WS_URL) return import.meta.env.VITE_WS_URL as string;
     const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
     // In dev, Vite proxies /ws → server:5000/ws
     return `${proto}//${window.location.host}/ws`;
