@@ -240,3 +240,83 @@ export interface RoomSummary {
   voteCounts: Record<string, number>;
   members: Array<{ id: string; name: string; vote?: string; isLeader: boolean }>;
 }
+
+// ─── Admin operations ─────────────────────────────────────────────────────────
+
+/** Returns all games with summary data for the admin panel */
+export function getAllGames(): Array<{
+  id: string; code: string; status: Game["status"]; roomCount: number;
+  totalPlayers: number; createdAt: Date;
+}> {
+  return [...games.values()].map((g) => ({
+    id: g.id,
+    code: g.code,
+    status: g.status,
+    roomCount: g.rooms.size,
+    totalPlayers: [...g.rooms.values()].reduce((s, r) => s + r.members.length, 0),
+    createdAt: g.createdAt,
+  }));
+}
+
+/** Reset a game back to lobby state, keeping rooms but clearing scores/answers */
+export function resetGame(gameId: string): Game | null {
+  const game = games.get(gameId);
+  if (!game) return null;
+  game.status = "lobby";
+  game.currentQuestionIndex = -1;
+  game.questions = [...QUESTIONS].sort(() => Math.random() - 0.5).slice(0, 15);
+  game.rooms.forEach((room) => {
+    room.score = 0;
+    room.lockedAnswer = undefined;
+    room.currentVotes = {};
+    room.answeredAt = {};
+    room.members.forEach((m) => (m.currentVote = undefined));
+  });
+  return game;
+}
+
+/** Delete a single room from a game */
+export function deleteRoom(gameId: string, roomCode: string): boolean {
+  const game = games.get(gameId);
+  if (!game) return false;
+  const existed = game.rooms.has(roomCode);
+  game.rooms.delete(roomCode);
+  roomToGameId.delete(roomCode);
+  return existed;
+}
+
+/** Remove a single member by socket id from their room */
+export function kickMember(socketId: string): { gameId: string; roomCode: string } | null {
+  for (const [gameId, game] of games) {
+    for (const [roomCode, room] of game.rooms) {
+      const idx = room.members.findIndex((m) => m.id === socketId);
+      if (idx >= 0) {
+        room.members.splice(idx, 1);
+        return { gameId, roomCode };
+      }
+    }
+  }
+  return null;
+}
+
+/** Permanently delete a game and all its rooms */
+export function deleteGame(gameId: string): boolean {
+  const game = games.get(gameId);
+  if (!game) return false;
+  game.rooms.forEach((_, code) => roomToGameId.delete(code));
+  games.delete(gameId);
+  return true;
+}
+
+/** Reset only a single room's score and votes */
+export function resetRoom(gameId: string, roomCode: string): Room | null {
+  const game = games.get(gameId);
+  const room = game?.rooms.get(roomCode);
+  if (!room) return null;
+  room.score = 0;
+  room.lockedAnswer = undefined;
+  room.currentVotes = {};
+  room.answeredAt = {};
+  room.members.forEach((m) => (m.currentVote = undefined));
+  return room;
+}

@@ -147,6 +147,27 @@ export default function RoomPage() {
           toast.error(msg.message);
           setJoining(false);
           break;
+
+        case "GAME_RESET":
+          toast.info(msg.message);
+          setPhase("lobby");
+          setQuestion(null);
+          setSelectedVote(null);
+          setResult(null);
+          setTotalScore(0);
+          setVoteState({ voteCounts: { A: 0, B: 0, C: 0, D: 0 }, totalVotes: 0, totalMembers: 0 });
+          break;
+
+        case "ROOM_RESET":
+          toast.info(msg.message);
+          setTotalScore(0);
+          break;
+
+        case "GAME_DELETED":
+        case "KICKED":
+          toast.error(msg.message);
+          setTimeout(() => { window.location.href = "/"; }, 2500);
+          break;
       }
     });
     return off;

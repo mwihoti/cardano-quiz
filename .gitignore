@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.tsbuildinfo
+
+# ── Environment files — NEVER commit these ──
+.env
+.env.local
+.env.production
+.env.*.local

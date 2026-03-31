@@ -59,4 +59,8 @@ export type ServerMsg =
   | { type: "GAME_FINISHED"; leaderboard: LeaderboardEntry[] }
   | { type: "ROOMS_UPDATE"; rooms: RoomSummary[] }
   | { type: "STATE_SNAPSHOT"; room: Room; gameStatus: GameStatus; currentQuestionIndex: number; currentQuestion: Question | null; totalQuestions: number }
-  | { type: "HOST_STATE"; game: { id: string; code: string; status: GameStatus }; rooms: RoomSummary[]; currentQuestionIndex: number; totalQuestions: number };
+  | { type: "HOST_STATE"; game: { id: string; code: string; status: GameStatus }; rooms: RoomSummary[]; currentQuestionIndex: number; totalQuestions: number }
+  | { type: "GAME_RESET"; message: string }
+  | { type: "ROOM_RESET"; message: string }
+  | { type: "GAME_DELETED"; message: string }
+  | { type: "KICKED"; message: string };

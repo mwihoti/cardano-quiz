@@ -8,6 +8,7 @@ import Host from "@/pages/Host";
 import HostDashboard from "@/pages/HostDashboard";
 import Leader from "@/pages/Leader";
 import Room from "@/pages/Room";
+import Admin from "@/pages/Admin";
 import NotFound from "@/pages/not-found";
 
 export default function App() {
@@ -24,6 +25,7 @@ export default function App() {
         <Route path="/host/:gameId" component={HostDashboard} />
         <Route path="/leader" component={Leader} />
         <Route path="/room/:roomCode" component={Room} />
+        <Route path="/admin" component={Admin} />
         <Route component={NotFound} />
       </Switch>
       <Toaster theme="dark" richColors position="top-center" />

@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import type { RoomSummary, Question, LeaderboardEntry, GameStatus } from "@/types";
 import { formatScore, shortenAddress } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { saveGameResults, savePlayers, saveEvent } from "@/lib/airtable";
 
 type Tab = "rooms" | "leaderboard";
 
@@ -21,6 +22,7 @@ export default function HostDashboard() {
   const [totalQuestions, setTotalQuestions] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [gameCode, setGameCode] = useState("");
   const [tab, setTab] = useState<Tab>("rooms");
 
   // Fetch initial state
@@ -33,6 +35,7 @@ export default function HostDashboard() {
       switch (msg.type) {
         case "HOST_STATE":
           setStatus(msg.game.status);
+          setGameCode(msg.game.code);
           setRooms(msg.rooms);
           setCurrentIndex(msg.currentQuestionIndex);
           setTotalQuestions(msg.totalQuestions);
@@ -57,6 +60,18 @@ export default function HostDashboard() {
           setStatus("finished");
           setCurrentQuestion(null);
           setTab("leaderboard");
+          // Auto-save everything to Airtable
+          {
+            const lb = msg.leaderboard.map((e: LeaderboardEntry) => ({
+              rank: e.rank, name: e.name, score: e.score, members: e.members ?? [],
+            }));
+            const totalPlayers = lb.reduce((s: number, e: typeof lb[0]) => s + e.members.length, 0);
+            Promise.all([
+              saveGameResults(gameCode, lb, totalQuestions),
+              savePlayers(gameCode, lb),
+              saveEvent(gameCode, lb.length, totalPlayers, lb[0]?.name ?? ""),
+            ]).then(() => toast.success("Results & players saved to Airtable ✓")).catch(() => {});
+          }
           break;
         case "ERROR":
           toast.error(msg.message);

@@ -1,7 +1,8 @@
-import type { Express } from "express";
+import type { Express, Request, Response } from "express";
 import type { Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import * as GM from "./gameManager.js";
+import { batchMintNfts, isNmkrConfigured, getNmkrStatus } from "./nft.js";
 
 // ─── WebSocket message types ──────────────────────────────────────────────────
 
@@ -55,6 +56,11 @@ function notifyHost(game: GM.Game, payload: object) {
   if (ws) send(ws, payload);
 }
 
+function notifyHostById(hostId: string, payload: object) {
+  const ws = clients.get(hostId);
+  if (ws) send(ws, payload);
+}
+
 function pushRoomListToHost(game: GM.Game) {
   notifyHost(game, { type: "ROOMS_UPDATE", rooms: GM.getRoomList(game.id) });
 }
@@ -63,9 +69,169 @@ function safeQuestion(q: GM.Game["questions"][number]) {
   return { id: q.id, category: q.category, question: q.question, options: q.options, points: q.points, timeLimit: q.timeLimit };
 }
 
+// ─── Admin auth helper ────────────────────────────────────────────────────────
+
+const ADMIN_PIN = process.env.ADMIN_PIN || "cardano2026";
+
+function requireAdmin(req: Request, res: Response): boolean {
+  const pin = req.headers["x-admin-pin"] as string | undefined;
+  if (pin !== ADMIN_PIN) {
+    res.status(401).json({ error: "Invalid admin PIN" });
+    return false;
+  }
+  return true;
+}
+
 // ─── Route registration ───────────────────────────────────────────────────────
 
-export function registerRoutes(httpServer: Server, _app: Express) {
+export function registerRoutes(httpServer: Server, app: Express) {
+  // ── Admin REST API ──────────────────────────────────────────────────────────
+
+  // Verify PIN
+  app.post("/api/admin/auth", (req: Request, res: Response) => {
+    const { pin } = req.body;
+    if (pin === ADMIN_PIN) res.json({ ok: true });
+    else res.status(401).json({ error: "Invalid PIN" });
+  });
+
+  // List all games
+  app.get("/api/admin/games", (req: Request, res: Response) => {
+    if (!requireAdmin(req, res)) return;
+    res.json({ games: GM.getAllGames() });
+  });
+
+  // Full game detail (rooms + members)
+  app.get("/api/admin/games/:gameId", (req: Request, res: Response) => {
+    if (!requireAdmin(req, res)) return;
+    const gameId = req.params["gameId"] as string;
+    const game = GM.getGame(gameId);
+    if (!game) { res.status(404).json({ error: "Game not found" }); return; }
+    res.json({ rooms: GM.getRoomList(game.id), status: game.status, code: game.code, currentQuestionIndex: game.currentQuestionIndex });
+  });
+
+  // Reset a game (back to lobby, wipes scores, keeps rooms)
+  app.post("/api/admin/games/:gameId/reset", (req: Request, res: Response) => {
+    if (!requireAdmin(req, res)) return;
+    const gameId = req.params["gameId"] as string;
+    const game = GM.resetGame(gameId);
+    if (!game) { res.status(404).json({ error: "Game not found" }); return; }
+    const everyone = [...game.rooms.values()].flatMap((r) => r.members.map((m) => m.id));
+    everyone.forEach((id) => {
+      const ws = clients.get(id);
+      if (ws) send(ws, { type: "GAME_RESET", message: "The host has reset the game." });
+    });
+    notifyHostById(game.hostId, { type: "GAME_RESET", message: "Game reset." });
+    res.json({ ok: true });
+  });
+
+  // Delete a game entirely
+  app.delete("/api/admin/games/:gameId", (req: Request, res: Response) => {
+    if (!requireAdmin(req, res)) return;
+    const gameId = req.params["gameId"] as string;
+    const game = GM.getGame(gameId);
+    if (game) {
+      const everyone = [...game.rooms.values()].flatMap((r) => r.members.map((m) => m.id));
+      everyone.forEach((id) => {
+        const ws = clients.get(id);
+        if (ws) send(ws, { type: "GAME_DELETED", message: "This session has been closed." });
+      });
+    }
+    const ok = GM.deleteGame(gameId);
+    res.json({ ok });
+  });
+
+  // Reset a single room's scores
+  app.post("/api/admin/games/:gameId/rooms/:roomCode/reset", (req: Request, res: Response) => {
+    if (!requireAdmin(req, res)) return;
+    const gameId = req.params["gameId"] as string;
+    const roomCode = req.params["roomCode"] as string;
+    const room = GM.resetRoom(gameId, roomCode);
+    if (!room) { res.status(404).json({ error: "Room not found" }); return; }
+    const game = GM.getGame(gameId)!;
+    room.members.forEach((m) => {
+      const ws = clients.get(m.id);
+      if (ws) send(ws, { type: "ROOM_RESET", message: "Your room score has been reset by admin." });
+    });
+    notifyHostById(game.hostId, { type: "ROOMS_UPDATE", rooms: GM.getRoomList(game.id) });
+    res.json({ ok: true });
+  });
+
+  // Delete a room
+  app.delete("/api/admin/games/:gameId/rooms/:roomCode", (req: Request, res: Response) => {
+    if (!requireAdmin(req, res)) return;
+    const gameId = req.params["gameId"] as string;
+    const roomCode = req.params["roomCode"] as string;
+    const game = GM.getGame(gameId);
+    const room = game?.rooms.get(roomCode);
+    if (room) {
+      room.members.forEach((m) => {
+        const ws = clients.get(m.id);
+        if (ws) send(ws, { type: "GAME_DELETED", message: "Your room has been removed by the admin." });
+      });
+    }
+    const ok = GM.deleteRoom(gameId, roomCode);
+    if (game) notifyHostById(game.hostId, { type: "ROOMS_UPDATE", rooms: GM.getRoomList(game.id) });
+    res.json({ ok });
+  });
+
+  // Kick a member
+  app.delete("/api/admin/members/:socketId", (req: Request, res: Response) => {
+    if (!requireAdmin(req, res)) return;
+    const socketId = req.params["socketId"] as string;
+    const ws = clients.get(socketId);
+    if (ws) send(ws, { type: "KICKED", message: "You have been removed by the admin." });
+    const result = GM.kickMember(socketId);
+    if (result) {
+      const game = GM.getGame(result.gameId);
+      if (game) notifyHostById(game.hostId, { type: "ROOMS_UPDATE", rooms: GM.getRoomList(game.id) });
+    }
+    res.json({ ok: !!result });
+  });
+
+  // ── NFT endpoints ───────────────────────────────────────────────────────────
+
+  // Check if NMKR is configured
+  app.get("/api/admin/nft/status", (req: Request, res: Response) => {
+    if (!requireAdmin(req, res)) return;
+    res.json(getNmkrStatus());
+  });
+
+  // Mint participation NFTs to a list of wallet addresses
+  // Body: { addresses: [{ recordId: string, wallet: string, name: string }] }
+  app.post("/api/admin/nft/mint", async (req: Request, res: Response) => {
+    if (!requireAdmin(req, res)) return;
+
+    const { addresses } = req.body as {
+      addresses: Array<{ recordId: string; wallet: string; name: string }>;
+    };
+
+    if (!Array.isArray(addresses) || addresses.length === 0) {
+      res.status(400).json({ error: "No addresses provided" });
+      return;
+    }
+
+    if (!isNmkrConfigured()) {
+      res.status(503).json({ error: "NMKR_API_KEY or NMKR_PROJECT_UID not configured on server" });
+      return;
+    }
+
+    // Run minting — results returned as they complete
+    const wallets = addresses.map((a) => a.wallet);
+    const mintResults = await batchMintNfts(wallets);
+
+    // Map results back to recordIds so client can update Airtable
+    const results = addresses.map((a, i) => ({
+      recordId: a.recordId,
+      name: a.name,
+      wallet: a.wallet,
+      success: mintResults[i].success,
+      txHash: mintResults[i].txHash,
+      error: mintResults[i].error,
+    }));
+
+    res.json({ results });
+  });
+
   const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
 
   wss.on("connection", (ws) => {
