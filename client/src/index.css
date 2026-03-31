@@ -1,0 +1,77 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@theme inline {
+  /* Cardano dark navy */
+  --color-background: hsl(220 30% 5%);
+  --color-foreground: hsl(220 10% 92%);
+
+  --color-card: hsl(220 25% 8%);
+  --color-card-foreground: hsl(220 10% 92%);
+
+  --color-popover: hsl(220 25% 10%);
+  --color-popover-foreground: hsl(220 10% 92%);
+
+  /* Cardano blue */
+  --color-primary: hsl(222 100% 54%);
+  --color-primary-foreground: hsl(0 0% 100%);
+
+  --color-secondary: hsl(220 25% 12%);
+  --color-secondary-foreground: hsl(220 10% 80%);
+
+  --color-muted: hsl(220 15% 18%);
+  --color-muted-foreground: hsl(220 10% 55%);
+
+  --color-accent: hsl(45 90% 58%);
+  --color-accent-foreground: hsl(0 0% 0%);
+
+  --color-destructive: hsl(0 75% 45%);
+  --color-destructive-foreground: hsl(0 0% 100%);
+
+  --color-border: hsl(220 15% 18%);
+  --color-input: hsl(220 20% 10%);
+  --color-ring: hsl(222 100% 54%);
+
+  --font-sans: 'Space Grotesk', sans-serif;
+  --font-mono: 'Space Mono', monospace;
+
+  --radius: 8px;
+}
+
+@layer base {
+  * { @apply border-border; }
+
+  body {
+    @apply antialiased bg-background text-foreground font-sans;
+    background-image:
+      radial-gradient(ellipse at 0% 0%, rgba(0, 51, 173, 0.12) 0%, transparent 60%),
+      radial-gradient(ellipse at 100% 100%, rgba(0, 80, 200, 0.08) 0%, transparent 60%);
+    min-height: 100dvh;
+  }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+}
+
+@layer utilities {
+  .glow-blue { box-shadow: 0 0 30px rgba(0, 51, 173, 0.4); }
+  .text-glow { text-shadow: 0 0 20px rgba(77, 127, 255, 0.5); }
+  .card-glass {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .answer-btn {
+    @apply w-full text-left px-5 py-4 rounded-xl border border-white/10 bg-white/3 hover:bg-primary/10 hover:border-primary/50 transition-all font-medium text-sm cursor-pointer;
+  }
+  .answer-btn.selected {
+    @apply bg-primary/20 border-primary/60 text-primary;
+  }
+  .answer-btn.correct {
+    @apply bg-green-500/20 border-green-500/60 text-green-300;
+  }
+  .answer-btn.wrong {
+    @apply bg-red-500/20 border-red-500/40 text-red-300 line-through opacity-60;
+  }
+}
